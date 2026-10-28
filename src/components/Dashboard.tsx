@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CityLocation } from '../services/locationService';
-import { Clock, Compass, BookOpen, Bookmark, Sun, Calendar, ArrowRight, ShieldCheck } from 'lucide-react';
+import { getPrayerTimesForDate } from '../services/prayerService';
+import { Clock, Compass, BookOpen, Calendar, ChevronRight, MapPin, Sparkles } from 'lucide-react';
 
 interface DashboardProps {
   currentLocation: CityLocation;
@@ -8,132 +9,117 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigate }) => {
+  // Fetch live calculated prayer times based on active selected city coordinates
+  const prayers = getPrayerTimesForDate(currentLocation.latitude, currentLocation.longitude);
+  
+  // Find the next upcoming prayer or default to the first one
+  const nextPrayer = prayers.find(p => p.isNext) || prayers[2] || prayers[0];
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 pb-24">
-      {/* Offline Mode Banner */}
-      <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 p-4 rounded-2xl flex items-center justify-between text-emerald-800 dark:text-emerald-300 shadow-xs">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span className="text-xs md:text-sm font-medium">Offline-first mode active. Timetable cached locally.</span>
+      
+      {/* Offline PWA Ready Banner */}
+      <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-2xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Offline-first mode active. Timetable cached locally.</span>
         </div>
-        <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-          PWA Ready
+        <span className="font-bold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+          PWA READY
         </span>
       </div>
 
-      {/* Main Hero Card */}
-      <div className="bg-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl relative overflow-hidden flex flex-col justify-between space-y-6 border border-slate-800">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      {/* Hero Next Prayer Card */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
+        <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
         
-        <div className="flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Next Prayer</span>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span>Next Prayer</span>
           </div>
-          <div className="text-xs bg-white/10 px-3 py-1 rounded-full font-mono text-slate-300">
+          <span className="text-[11px] font-mono bg-white/10 px-3 py-1 rounded-full text-slate-300 backdrop-blur-xs">
             Calculated Live
-          </div>
+          </span>
         </div>
 
-        <div className="relative z-10 space-y-1">
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">Dhuhr</h1>
-          <p className="text-emerald-400 font-mono text-lg font-semibold">01:45 pm</p>
+        <div className="space-y-1 mb-8">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight">{nextPrayer.name}</h1>
+          <div className="text-3xl md:text-4xl font-mono font-bold text-emerald-400">{nextPrayer.time}</div>
         </div>
 
-        <div className="pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400 relative z-10">
-          <div className="flex items-center gap-1.5 font-medium text-slate-300">
-            <span>📍 {currentLocation.name}, {currentLocation.country}</span>
+        <div className="flex items-center justify-between pt-4 border-t border-slate-700/60 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{currentLocation.name}, {currentLocation.country}</span>
           </div>
           <button 
             onClick={() => onNavigate('timetable')}
-            className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition"
+            className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold transition group"
           >
             <span>View Full Timetable</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
           </button>
         </div>
       </div>
 
-      {/* Quick Navigation Modules Grid (Now 6 Modules) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <button
-          onClick={() => onNavigate('timetable')}
-          className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 hover:shadow-lg transition text-left flex flex-col justify-between space-y-6 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
-            <Clock className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Timetable</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Daily schedules</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onNavigate('qibla')}
-          className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 hover:shadow-lg transition text-left flex flex-col justify-between space-y-6 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center group-hover:scale-110 transition">
-            <Compass className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Qibla</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Direction finder</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onNavigate('wudu')}
-          className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-amber-500/50 hover:shadow-lg transition text-left flex flex-col justify-between space-y-6 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center group-hover:scale-110 transition">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Learn Wudu</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Ablution guide</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onNavigate('salah')}
-          className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 hover:shadow-lg transition text-left flex flex-col justify-between space-y-6 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
-            <Bookmark className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Learn Solat</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Prayer guide</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onNavigate('jummah')}
-          className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 hover:shadow-lg transition text-left flex flex-col justify-between space-y-6 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition">
-            <Sun className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Jummah Guide</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Friday blessings</p>
-          </div>
-        </button>
-
-        <button
-          onClick={() => onNavigate('calendar')}
-          className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 hover:shadow-lg transition text-left flex flex-col justify-between space-y-6 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 flex items-center justify-center group-hover:scale-110 transition">
-            <Calendar className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">Hijri Calendar</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Islamic events</p>
-          </div>
-        </button>
+      {/* Quick Access Navigation Modules Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { id: 'timetable', name: 'Timetable', desc: 'Daily Schedule', icon: Clock, color: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' },
+          { id: 'qibla', name: 'Qibla Compass', desc: 'Kaaba Direction', icon: Compass, color: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600' },
+          { id: 'wudu', name: 'Learn Wudu', desc: 'Step-by-Step', icon: BookOpen, color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600' },
+          { id: 'salah', name: 'Learn Salah', desc: 'Prayer Guide', icon: Sparkles, color: 'bg-purple-50 dark:bg-purple-950/30 text-purple-600' },
+        ].map((mod) => {
+          const Icon = mod.icon;
+          return (
+            <button
+              key={mod.id}
+              onClick={() => onNavigate(mod.id)}
+              className="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-700 shadow-xs hover:shadow-md transition text-left flex flex-col justify-between group"
+            >
+              <div className={`w-10 h-10 rounded-2xl ${mod.color} flex items-center justify-center mb-4 group-hover:scale-105 transition`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-slate-900 dark:text-white text-sm">{mod.name}</div>
+                <div className="text-[11px] text-slate-400 mt-0.5">{mod.desc}</div>
+              </div>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Today's Prayers Summary Card */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Today's Prayer Schedule</h2>
+          </div>
+          <span className="text-xs text-slate-400 font-medium">Local Time</span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {prayers.map((p, idx) => (
+            <div 
+              key={idx}
+              className={`p-3.5 rounded-2xl border transition flex flex-col justify-between ${
+                p.name === nextPrayer.name 
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 text-emerald-900 dark:text-emerald-200' 
+                  : 'bg-slate-50 dark:bg-slate-700/40 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span>{p.name}</span>
+                <span className="font-arabic text-slate-400">{p.arabicName}</span>
+              </div>
+              <div className="font-mono text-base font-bold mt-2">{p.time}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 };
