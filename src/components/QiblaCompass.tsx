@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { CityLocation } from '../services/locationService';
-import { ArrowLeft, Compass, AlertCircle, RefreshCw, Navigation } from 'lucide-react';
+import { ArrowLeft, Compass, AlertCircle, RefreshCw, Navigation, ShieldCheck } from 'lucide-react';
 
 interface QiblaCompassProps {
   currentLocation: CityLocation;
@@ -12,60 +12,67 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ currentLocation, onB
   const [permissionGranted, setPermissionGranted] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Accurate Great-Circle Qibla Bearing calculation from current coordinates to Kaaba
-  const calculateQiblaBearing = (lat: number, lon: number) => {
+  // 1. Rigorous Great-Circle Initial Bearing (Forward Azimuth) Calculation
+  const calculateQiblaBearing = useCallback((lat: number, lon: number): number => {
     const kaabaLat = 21.4225;
     const kaabaLon = 39.8262;
 
-    const phi1 = (lat * Math.PI) / 180;
-    const phi2 = (kaabaLat * Math.PI) / 180;
-    const deltaLambda = ((kaabaLon - lon) * Math.PI) / 180;
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const toDeg = (rad: number) => (rad * 180) / Math.PI;
+
+    const phi1 = toRad(lat);
+    const phi2 = toRad(kaabaLat);
+    const deltaLambda = toRad(kaabaLon - lon);
 
     const y = Math.sin(deltaLambda) * Math.cos(phi2);
     const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
-    
-    let theta = Math.atan2(y, x);
-    let bearing = (theta * 180) / Math.PI;
+
+    const theta = Math.atan2(y, x);
+    let bearing = toDeg(theta);
+
+    // Normalize to [0, 360) degrees
     return Math.round((bearing + 360) % 360);
-  };
+  }, []);
 
   const qiblaBearing = calculateQiblaBearing(currentLocation.latitude, currentLocation.longitude);
 
-  // Convert bearing degrees to cardinal direction string
-  const getCardinalDirection = (deg: number) => {
+  // 2. Convert bearing degrees to cardinal string
+  const getCardinalDirection = (deg: number): string => {
     const directions = ['North', 'Northeast', 'East', 'Southeast', 'South', 'Southwest', 'West', 'Northwest'];
     return directions[Math.round(deg / 45) % 8];
   };
 
-  // Handle iOS/Android device orientation permission and events
+  // 3. Handle Sensor Permissions & Event Listeners
   const requestCompassPermission = async () => {
+    setErrorMsg(null);
     try {
-      // @ts-ignore - iOS Safari 13+ permission request
+      // @ts-ignore - iOS Safari 13+ permission API check
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         // @ts-ignore
         const response = await DeviceOrientationEvent.requestPermission();
         if (response === 'granted') {
           setPermissionGranted(true);
-          window.addEventListener('deviceorientationabsolute', handleOrientation, true);
           window.addEventListener('deviceorientation', handleOrientation, true);
         } else {
-          setErrorMsg('Permission denied. Using static numerical guidance.');
+          setErrorMsg('Compass permission denied by user. Using static bearing mode.');
         }
       } else if ('ondeviceorientation' in window) {
         setPermissionGranted(true);
         window.addEventListener('deviceorientation', handleOrientation, true);
       } else {
-        setErrorMsg('Compass sensors not supported on this browser.');
+        setErrorMsg('Device orientation sensors are not supported on this browser.');
       }
     } catch (err) {
-      setErrorMsg('Could not access device sensors.');
+      setErrorMsg('Failed to initialize device orientation sensors.');
     }
   };
 
   const handleOrientation = (event: DeviceOrientationEvent) => {
-    // @ts-ignore - webkitCompassHeading is specific to iOS Safari for accurate magnetic heading
+    // Prioritize iOS webkitCompassHeading, fallback to absolute or alpha Z-axis rotation
+    // @ts-ignore
     const compassHeading = event.webkitCompassHeading !== undefined ? event.webkitCompassHeading : event.alpha;
-    if (compassHeading !== null) {
+    
+    if (compassHeading !== null && compassHeading !== undefined) {
       setHeading(Math.round(compassHeading));
     }
   };
@@ -73,38 +80,39 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ currentLocation, onB
   useEffect(() => {
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation);
-      window.removeEventListener('deviceorientationabsolute', handleOrientation);
     };
   }, []);
 
-  // Compute needle rotation: points towards Qibla relative to phone's current facing heading
+  // 4. Compute needle rotation: Qibla bearing relative to current phone heading
+  // Formula: needle points towards Qibla as the phone rotates
   const needleRotation = heading !== null ? (qiblaBearing - heading + 360) % 360 : qiblaBearing;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 pb-24">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 pb-24 animate-in fade-in duration-300">
       {/* Top Navigation */}
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-600 transition bg-white dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm"
+          className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-600 transition bg-white dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Dashboard</span>
         </button>
-        <div className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-          {currentLocation.name}
+        <div className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Geodesic Accuracy • {currentLocation.name}</span>
         </div>
       </div>
 
-      {/* Header */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+      {/* Header Info Card */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center">
             <Compass className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Qibla Direction</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Great-circle heading calculated from your location</p>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Qibla Direction Finder</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Great-circle initial bearing relative to True North</p>
           </div>
         </div>
         <div className="text-right">
@@ -113,17 +121,17 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ currentLocation, onB
         </div>
       </div>
 
-      {/* Compass Interactive Card */}
-      <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm text-center flex flex-col items-center justify-center space-y-6">
+      {/* Compass Interactive / Fallback Display Card */}
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xs text-center flex flex-col items-center justify-center space-y-6">
         
         {/* Visual Compass Dial */}
         <div className="relative w-64 h-64 rounded-full border-4 border-slate-200 dark:border-slate-700 flex items-center justify-center bg-slate-50 dark:bg-slate-900 shadow-inner">
-          <span className="absolute top-2 text-xs font-bold text-slate-400">N</span>
-          <span className="absolute bottom-2 text-xs font-bold text-slate-400">S</span>
-          <span className="absolute left-2 text-xs font-bold text-slate-400">W</span>
-          <span className="absolute right-2 text-xs font-bold text-slate-400">E</span>
+          <span className="absolute top-3 text-xs font-bold text-slate-400">N</span>
+          <span className="absolute bottom-3 text-xs font-bold text-slate-400">S</span>
+          <span className="absolute left-3 text-xs font-bold text-slate-400">W</span>
+          <span className="absolute right-3 text-xs font-bold text-slate-400">E</span>
           
-          {/* Rotating Qibla Needle Pointer */}
+          {/* Rotating Qibla Arrow Pointer */}
           <div 
             className="absolute w-full h-full flex items-center justify-center transition-transform duration-150 ease-out"
             style={{ transform: `rotate(${needleRotation}deg)` }}
@@ -136,12 +144,12 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ currentLocation, onB
           <div className="w-4 h-4 bg-slate-800 dark:bg-slate-200 rounded-full z-10 shadow"></div>
         </div>
 
-        {/* Status & Permission Control */}
+        {/* Status & Controls */}
         <div className="space-y-3 w-full max-w-sm">
           {!permissionGranted ? (
             <div className="space-y-3">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Tap below to enable live phone compass rotation in Safari, or align your phone using the static bearing: <strong className="text-emerald-600">{qiblaBearing}° ({getCardinalDirection(qiblaBearing)})</strong>.
+                To use live phone sensors in Safari/Chrome, tap below. Otherwise, face <strong className="text-emerald-600">{qiblaBearing}° ({getCardinalDirection(qiblaBearing)})</strong> from True North.
               </p>
               <button
                 onClick={requestCompassPermission}
@@ -152,13 +160,13 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ currentLocation, onB
               </button>
             </div>
           ) : (
-            <div className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/30 py-2 px-4 rounded-xl inline-block">
-              Sensor Active {heading !== null ? `• Phone Heading: ${heading}°` : ''}
+            <div className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/30 py-2.5 px-4 rounded-xl inline-block">
+              Sensor Active {heading !== null ? `• Phone Heading: ${heading}°` : '• Calibrating...'}
             </div>
           )}
 
           {errorMsg && (
-            <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2.5 rounded-xl border border-amber-500/30 flex items-center gap-2 justify-center">
+            <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl border border-amber-500/30 flex items-center gap-2 justify-center">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -167,4 +175,4 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ currentLocation, onB
       </div>
     </div>
   );
-};
+}
