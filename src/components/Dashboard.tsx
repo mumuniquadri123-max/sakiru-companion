@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { CityLocation } from '../services/locationService';
-import { getLivePrayerStatus, LivePrayerStatus } from '../services/prayerTimeEngine';
+import { getLivePrayerStatus } from '../services/prayerTimeEngine';
+import type { LivePrayerStatus } from '../services/prayerTimeEngine';
 import { Clock, Compass, BookOpen, Calendar, ChevronRight, MapPin, Sparkles, Users, CalendarDays, Timer } from 'lucide-react';
 
 interface DashboardProps {
@@ -15,14 +16,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigat
 
   // 1-second live ticker effect
   useEffect(() => {
-    // Recalculate immediately when location changes or component mounts
     setPrayerStatus(getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude));
 
     const timer = setInterval(() => {
       setPrayerStatus(getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude));
     }, 1000);
 
-    // Visibility change handler to instantly resync when user returns to tab/phone
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         setPrayerStatus(getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude));
@@ -31,7 +30,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigat
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Cleanup interval and listener on unmount
     return () => {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -89,7 +87,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigat
         </div>
       </div>
 
-      {/* Quick Access Navigation Modules Grid */}
+      {/* Quick Access Navigation Modules Grid (All 6 Features) */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { id: 'timetable', name: 'Timetable', desc: 'Daily Schedule', icon: Clock, color: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' },
