@@ -8,13 +8,24 @@ export interface CalculatedPrayer {
 }
 
 export function getPrayerTimesForDate(
-  latitude: number = 51.5074, 
-  longitude: number = -0.1278, 
+  latitude: number, 
+  longitude: number, 
   date: Date = new Date()
 ): CalculatedPrayer[] {
   const coordinates = new Coordinates(latitude, longitude);
-  const params = CalculationMethod.MuslimWorldLeague();
-  params.madhab = 'shafi';
+
+  // Read the active calculation method saved in localStorage (defaults to MWL)
+  const savedMethod = localStorage.getItem('sakiru_calc_method') || 'MWL';
+  const savedAsr = localStorage.getItem('sakiru_asr_method') || 'Standard';
+
+  let params = CalculationMethod.MuslimWorldLeague();
+  if (savedMethod === 'ISNA') params = CalculationMethod.NorthAmerica();
+  else if (savedMethod === 'Egypt') params = CalculationMethod.Egyptian();
+  else if (savedMethod === 'Makkah') params = CalculationMethod.UmmAlQura();
+  else if (savedMethod === 'Karachi') params = CalculationMethod.Karachi();
+
+  // Set Asr juristic method (Standard vs Hanafi)
+  params.madhab = savedAsr === 'Hanafi' ? 'hanafi' : 'shafi';
 
   const prayerTimes = new PrayerTimes(coordinates, date, params);
 
