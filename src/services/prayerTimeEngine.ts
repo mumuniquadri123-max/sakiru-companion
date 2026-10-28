@@ -43,10 +43,15 @@ export function getLivePrayerStatus(latitude: number, longitude: number): LivePr
 
   const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 
+  // Check if today is Friday (getDay() === 5)
+  const isFriday = now.getDay() === 5;
+  const middayName = isFriday ? 'Jumu\'ah' : 'Dhuhr';
+  const middayArabic = isFriday ? 'صلاة الجمعة' : 'الظهر';
+
   const schedule = [
     { name: 'Fajr', arabicName: 'الفجر', time: formatTime(todayTimes.fajr), dateObj: todayTimes.fajr },
     { name: 'Sunrise', arabicName: 'الشروق', time: formatTime(todayTimes.sunrise), dateObj: todayTimes.sunrise },
-    { name: 'Dhuhr', arabicName: 'الظهر', time: formatTime(todayTimes.dhuhr), dateObj: todayTimes.dhuhr },
+    { name: { name: middayName, arabicName: middayArabic }.name, arabicName: { name: middayName, arabicName: middayArabic }.arabicName, time: formatTime(todayTimes.dhuhr), dateObj: todayTimes.dhuhr },
     { name: 'Asr', arabicName: 'العصر', time: formatTime(todayTimes.asr), dateObj: todayTimes.asr },
     { name: 'Maghrib', arabicName: 'المغرب', time: formatTime(todayTimes.maghrib), dateObj: todayTimes.maghrib },
     { name: 'Isha', arabicName: 'العشاء', time: formatTime(todayTimes.isha), dateObj: todayTimes.isha },
