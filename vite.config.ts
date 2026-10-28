@@ -8,24 +8,24 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'icons.svg'],
       manifest: {
-        name: 'SAKIRU Islamic Companion',
+        name: 'SAKIRU - Islamic Companion',
         short_name: 'SAKIRU',
-        description: 'Privacy-first, offline-ready Islamic companion app',
+        description: 'Privacy-focused Islamic companion app',
         theme_color: '#059669',
         background_color: '#0f172a',
         display: 'standalone',
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: '/favicon.svg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/svg+xml'
           },
           {
-            src: '/pwa-512x512.png',
+            src: '/favicon.svg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml'
           }
         ]
       }
