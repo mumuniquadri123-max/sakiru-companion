@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { CityLocation } from '../services/locationService';
-import { getPrayerTimesForDate } from '../services/prayerService';
-import { Clock, Compass, BookOpen, Calendar, ChevronRight, MapPin, Sparkles, Users, CalendarDays } from 'lucide-react';
+import { getLivePrayerStatus, LivePrayerStatus } from '../services/prayerTimeEngine';
+import { Clock, Compass, BookOpen, Calendar, ChevronRight, MapPin, Sparkles, Users, CalendarDays, Timer } from 'lucide-react';
 
 interface DashboardProps {
   currentLocation: CityLocation;
@@ -9,40 +9,69 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigate }) => {
-  const prayers = getPrayerTimesForDate(currentLocation.latitude, currentLocation.longitude);
-  const nextPrayer = prayers.find(p => p.isNext) || prayers[2] || prayers[0];
+  const [prayerStatus, setPrayerStatus] = useState<LivePrayerStatus>(() => 
+    getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude)
+  );
+
+  // 1-second live ticker effect
+  useEffect(() => {
+    // Recalculate immediately when location changes or component mounts
+    setPrayerStatus(getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude));
+
+    const timer = setInterval(() => {
+      setPrayerStatus(getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude));
+    }, 1000);
+
+    // Visibility change handler to instantly resync when user returns to tab/phone
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setPrayerStatus(getLivePrayerStatus(currentLocation.latitude, currentLocation.longitude));
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup interval and listener on unmount
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [currentLocation]);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 pb-24">
+    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 pb-24 animate-in fade-in duration-300">
       
       {/* Offline PWA Ready Banner */}
       <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-2xl flex items-center justify-between text-xs text-emerald-800 dark:text-emerald-300 shadow-xs">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Offline-first mode active. Timetable cached locally.</span>
+          <span>Offline-first mode active. Live clock ticking.</span>
         </div>
         <span className="font-bold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
           PWA READY
         </span>
       </div>
 
-      {/* Hero Next Prayer Card */}
+      {/* Hero Next Prayer Card with Live Countdown */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
         <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
         
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold uppercase tracking-wider">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
             <span>Next Prayer</span>
           </div>
-          <span className="text-[11px] font-mono bg-white/10 px-3 py-1 rounded-full text-slate-300 backdrop-blur-xs">
-            Calculated Live
-          </span>
+          <div className="flex items-center gap-1.5 text-xs font-mono bg-white/10 px-3 py-1 rounded-full text-emerald-300 backdrop-blur-xs">
+            <Timer className="w-3.5 h-3.5 animate-spin-slow" />
+            <span>in {prayerStatus.timeRemainingFormatted}</span>
+          </div>
         </div>
 
-        <div className="space-y-1 mb-8">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight">{nextPrayer.name}</h1>
-          <div className="text-3xl md:text-4xl font-mono font-bold text-emerald-400">{nextPrayer.time}</div>
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight">{prayerStatus.nextPrayerName}</h1>
+            <div className="text-xl md:text-2xl font-mono font-bold text-emerald-400 mt-1">{prayerStatus.nextPrayerTime}</div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between pt-4 border-t border-slate-700/60 text-xs text-slate-300">
@@ -60,7 +89,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigat
         </div>
       </div>
 
-      {/* Quick Access Navigation Modules Grid (Restored All Features) */}
+      {/* Quick Access Navigation Modules Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { id: 'timetable', name: 'Timetable', desc: 'Daily Schedule', icon: Clock, color: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' },
@@ -89,23 +118,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigat
         })}
       </div>
 
-      {/* Today's Prayers Summary Card */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-sm space-y-4">
+      {/* Today's Prayers Summary Card with Live Highlighting */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-emerald-600" />
             <h2 className="text-base font-bold text-slate-900 dark:text-white">Today's Prayer Schedule</h2>
           </div>
-          <span className="text-xs text-slate-400 font-medium">Local Time</span>
+          <span className="text-xs text-slate-400 font-medium">Live Clock Active</span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {prayers.map((p, idx) => (
+          {prayerStatus.allPrayersToday.map((p, idx) => (
             <div 
               key={idx}
               className={`p-3.5 rounded-2xl border transition flex flex-col justify-between ${
-                p.name === nextPrayer.name 
-                  ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 text-emerald-900 dark:text-emerald-200' 
+                p.isNext 
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-500 text-emerald-900 dark:text-emerald-200 shadow-xs' 
                   : 'bg-slate-50 dark:bg-slate-700/40 border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-300'
               }`}
             >
