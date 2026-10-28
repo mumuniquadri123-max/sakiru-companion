@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CityLocation } from '../services/locationService';
 import { getPrayerTimesForDate } from '../services/prayerService';
-import { Clock, Compass, BookOpen, Calendar, ChevronRight, MapPin, Sparkles } from 'lucide-react';
+import { Clock, Compass, BookOpen, Calendar, ChevronRight, MapPin, Sparkles, Users, CalendarDays } from 'lucide-react';
 
 interface DashboardProps {
   currentLocation: CityLocation;
@@ -9,10 +9,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigate }) => {
-  // Fetch live calculated prayer times based on active selected city coordinates
   const prayers = getPrayerTimesForDate(currentLocation.latitude, currentLocation.longitude);
-  
-  // Find the next upcoming prayer or default to the first one
   const nextPrayer = prayers.find(p => p.isNext) || prayers[2] || prayers[0];
 
   return (
@@ -63,13 +60,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentLocation, onNavigat
         </div>
       </div>
 
-      {/* Quick Access Navigation Modules Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Quick Access Navigation Modules Grid (Restored All Features) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { id: 'timetable', name: 'Timetable', desc: 'Daily Schedule', icon: Clock, color: 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' },
           { id: 'qibla', name: 'Qibla Compass', desc: 'Kaaba Direction', icon: Compass, color: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600' },
           { id: 'wudu', name: 'Learn Wudu', desc: 'Step-by-Step', icon: BookOpen, color: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600' },
           { id: 'salah', name: 'Learn Salah', desc: 'Prayer Guide', icon: Sparkles, color: 'bg-purple-50 dark:bg-purple-950/30 text-purple-600' },
+          { id: 'jummah', name: 'Jummah Module', desc: 'Khutbah & Sunnah', icon: Users, color: 'bg-teal-50 dark:bg-teal-950/30 text-teal-600' },
+          { id: 'calendar', name: 'Islamic Calendar', desc: 'Hijri Dates', icon: CalendarDays, color: 'bg-rose-50 dark:bg-rose-950/30 text-rose-600' },
         ].map((mod) => {
           const Icon = mod.icon;
           return (
